@@ -71,16 +71,20 @@ def encode_image_to_base64(image_path):
         return base64.b64encode(img_file.read()).decode('utf-8')
 
 
-def create_interpolation_prompt(start_date, end_date, target_date, image_type="satellite"):
+def create_interpolation_prompt(start_date, end_date, target_date, image_type="satellite", image_size=None):
     """Create focused prompt for Gemini to generate interpolated images."""
     
     days_total = (end_date - start_date).days
     days_from_start = (target_date - start_date).days
     interpolation_ratio = days_from_start / days_total
     
+    size_instruction = ""
+    if image_size:
+        size_instruction = f" The output image must be exactly {image_size[0]}x{image_size[1]} pixels."
+    
     prompt = f"""Create an image that interpolates between these two satellite images for date {target_date.strftime('%Y-%m-%d')}.
 
-The interpolation should be at position {interpolation_ratio:.2f} in the temporal sequence.
+The interpolation should be at position {interpolation_ratio:.2f} in the temporal sequence.{size_instruction}
 
 Output: Generate a new satellite image (not text description) that smoothly transitions between the two input images."""
     return prompt
@@ -105,12 +109,13 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
     print(f"Interpolating between {start_date.strftime('%Y-%m-%d')} and {end_date.strftime('%Y-%m-%d')}")
     print(f"Target date: {target_date.strftime('%Y-%m-%d')}")
     
-    # Load images
+    # Load images and get original size
     start_img = Image.open(start_image_path)
     end_img = Image.open(end_image_path)
+    original_size = start_img.size  # (width, height)
     
-    # Create prompt
-    prompt = create_interpolation_prompt(start_date, end_date, target_date, image_type)
+    # Create prompt with original image size
+    prompt = create_interpolation_prompt(start_date, end_date, target_date, image_type, original_size)
     
     try:
         # Try with newer Google GenAI client first
@@ -131,9 +136,12 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
                 print(part.text)
                 
             elif part.inline_data is not None:
-                # Extract and save the generated image
+                # Extract and resize the generated image to match original size
                 image_bytes = part.inline_data.data
                 generated_image = Image.open(BytesIO(image_bytes))
+                if generated_image.size != original_size:
+                    print(f"Resizing generated image from {generated_image.size} to {original_size}")
+                    generated_image = generated_image.resize(original_size, Image.Resampling.LANCZOS)
                 generated_image.save(output_path)
                 print(f"Generated image saved: {output_path}")
                 generated_image_saved = True
@@ -168,9 +176,12 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
                     print(part.text)
                     
                 elif part.inline_data is not None:
-                    # Extract and save the generated image
+                    # Extract and resize the generated image to match original size
                     image_bytes = part.inline_data.data
                     generated_image = Image.open(BytesIO(image_bytes))
+                    if generated_image.size != original_size:
+                        print(f"Resizing generated image from {generated_image.size} to {original_size}")
+                        generated_image = generated_image.resize(original_size, Image.Resampling.LANCZOS)
                     generated_image.save(output_path)
                     print(f"Generated image saved: {output_path}")
                     generated_image_saved = True
