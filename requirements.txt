@@ -1,0 +1,9 @@
+google-generativeai
+pillow
+requests
+python-dotenv
+numpy
+pandas
+xarray
+netcdf4
+matplotlib
