@@ -2,9 +2,10 @@
 """
 Satellite Image Interpolation using Gemini 2.5 Flash Image Preview
 
-This script uses Google's Gemini 2.5 Flash Image Preview model to generate intermediate
-satellite images between two known images with timestamps. Useful for filling
-gaps in time series satellite data.
+This script uses Google's Gemini 2.5 Flash Image Preview model to generate realistic
+intermediate satellite images between two known images with timestamps. The model
+can create sophisticated interpolations considering seasonal changes, weather patterns,
+and agricultural cycles. Useful for filling gaps in time series satellite data.
 
 Set up your API key in .env file: GEMINI_API_KEY=your_key_here
 """
@@ -20,6 +21,7 @@ import base64
 from io import BytesIO
 
 import google.generativeai as genai
+import google.generativeai as google_genai
 from PIL import Image
 import requests
 from dotenv import load_dotenv
@@ -70,62 +72,22 @@ def encode_image_to_base64(image_path):
 
 
 def create_interpolation_prompt(start_date, end_date, target_date, image_type="satellite"):
-    """Create detailed prompt for Gemini to interpolate between images."""
+    """Create focused prompt for Gemini to generate interpolated images."""
     
     days_total = (end_date - start_date).days
     days_from_start = (target_date - start_date).days
     interpolation_ratio = days_from_start / days_total
     
-    prompt = f"""
-You are an expert in satellite image analysis and temporal interpolation. I need you to generate a realistic intermediate satellite image.
+    prompt = f"""Create an image that interpolates between these two satellite images for date {target_date.strftime('%Y-%m-%d')}.
 
-**Context:**
-- Image Type: {image_type} imagery
-- Start Date: {start_date.strftime('%Y-%m-%d')}
-- Target Date: {target_date.strftime('%Y-%m-%d')} 
-- End Date: {end_date.strftime('%Y-%m-%d')}
-- Interpolation Position: {interpolation_ratio:.2f} ({days_from_start} days from start, {days_total - days_from_start} days to end)
+The interpolation should be at position {interpolation_ratio:.2f} in the temporal sequence.
 
-**Task:**
-Create a realistic satellite image for the target date that represents a smooth temporal transition between the two provided images.
-
-**Consider these factors:**
-1. **Seasonal Changes**: Gradual vegetation phenology, leaf emergence/senescence
-2. **Weather Patterns**: Cloud cover, precipitation effects, soil moisture
-3. **Agricultural Cycles**: Crop growth stages, harvesting, planting
-4. **Natural Processes**: Gradual landscape changes, erosion, water levels
-5. **Temporal Consistency**: Realistic progression of all visible features
-
-**CRITICAL - Cloud/Data Gap Handling:**
-6. **Black Pixels = Clouds**: Black pixels or very dark areas typically represent clouds, cloud shadows, or data gaps
-7. **Avoid Cloud Reproduction**: The interpolated image should MINIMIZE black pixels/areas when possible
-8. **Clear Ground Priority**: When clouds obscure areas in reference images:
-   - Use clear pixel data from the clearer reference image
-   - Interpolate based on surrounding clear pixels and seasonal patterns
-   - Generate realistic ground cover rather than maintaining cloud coverage
-   - Show actual land surface features instead of atmospheric obstructions
-9. **Realistic Weather**: Consider typical weather patterns but prioritize ground visibility over cloud patterns
-
-**Output Requirements:**
-- Generate an image with identical dimensions and structure
-- Maintain spatial consistency (same geographic features)
-- Apply gradual, realistic temporal changes
-- Preserve the same image characteristics (bands, composites, etc.)
-- Ensure smooth transition between start and end states
-- PRIORITIZE clear ground visibility over reproducing clouds or data gaps
-
-Please generate the intermediate satellite image for {target_date.strftime('%Y-%m-%d')}.
-"""
+Output: Generate a new satellite image (not text description) that smoothly transitions between the two input images."""
     return prompt
 
 
 def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_date, output_path, image_type="satellite"):
-    """Use Gemini to interpolate between two satellite images."""
-    
-    # Configure Gemini
-    genai.configure(api_key=api_key)
-    model_name = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-image-preview')
-    model = genai.GenerativeModel(model_name)
+    """Use Gemini 2.5 Flash Image Preview to generate interpolated satellite images."""
     
     # Extract dates from filenames
     start_date = extract_date_from_filename(start_image_path.name)
@@ -142,7 +104,6 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
     
     print(f"Interpolating between {start_date.strftime('%Y-%m-%d')} and {end_date.strftime('%Y-%m-%d')}")
     print(f"Target date: {target_date.strftime('%Y-%m-%d')}")
-    print(f"Using Gemini model: {model_name}")
     
     # Load images
     start_img = Image.open(start_image_path)
@@ -152,38 +113,96 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
     prompt = create_interpolation_prompt(start_date, end_date, target_date, image_type)
     
     try:
-        # Generate interpolated image
-        response = model.generate_content([
-            prompt,
-            start_img,
-            end_img
-        ])
+        # Try with newer Google GenAI client first
+        print("Trying Google GenAI client...")
+        client = google_genai.Client(api_key=api_key)
         
-        # Note: Gemini 2.5 Flash doesn't directly generate images
-        # This is a conceptual framework - in practice, you might need:
-        # 1. A different model that can generate images
-        # 2. Use the text response to guide traditional interpolation
-        # 3. Use a different approach like DALL-E or Midjourney
+        # Create the chat
+        chat = client.chats.create(model="gemini-2.5-flash-image-preview")
         
-        print("Response from Gemini:")
-        print(response.text)
+        # Send the image and ask for it to be edited
+        response = chat.send_message([prompt, start_img, end_img])
         
-        # For now, save the text analysis
-        analysis_path = output_path.parent / f"{output_path.stem}_analysis.txt"
-        with open(analysis_path, 'w') as f:
-            f.write(f"Interpolation Analysis for {target_date.strftime('%Y-%m-%d')}\n")
-            f.write("="*50 + "\n\n")
-            f.write(response.text)
+        # Get the text and the image generated
+        generated_image_saved = False
+        for i, part in enumerate(response.candidates[0].content.parts):
+            if part.text is not None:
+                print("Response from Gemini:")
+                print(part.text)
+                
+                # Save the text analysis
+                analysis_path = output_path.parent / f"{output_path.stem}_analysis.txt"
+                analysis_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(analysis_path, 'w') as f:
+                    f.write(f"Interpolation Analysis for {target_date.strftime('%Y-%m-%d')}\n")
+                    f.write("="*50 + "\n\n")
+                    f.write(part.text)
+                print(f"Saved analysis to: {analysis_path}")
+                
+            elif part.inline_data is not None:
+                # Extract and save the generated image
+                image_bytes = part.inline_data.data
+                generated_image = Image.open(BytesIO(image_bytes))
+                generated_image.save(output_path)
+                print(f"Generated image saved: {output_path}")
+                generated_image_saved = True
         
-        print(f"Saved analysis to: {analysis_path}")
-        
-        # Placeholder: Create a simple linear interpolation as fallback
-        return create_simple_interpolation(start_img, end_img, start_date, end_date, target_date, output_path)
+        if generated_image_saved:
+            return output_path
+        else:
+            print("Warning: No image was generated by Gemini")
+            return create_simple_interpolation(start_img, end_img, start_date, end_date, target_date, output_path)
         
     except Exception as e:
-        print(f"Error with Gemini API: {e}")
-        print("Falling back to simple interpolation...")
-        return create_simple_interpolation(start_img, end_img, start_date, end_date, target_date, output_path)
+        print(f"Error with Google GenAI client: {e}")
+        print("Trying legacy google.generativeai client...")
+        
+        try:
+            # Fallback to legacy client
+            genai.configure(api_key=api_key)
+            model_name = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-image-preview')
+            model = genai.GenerativeModel(model_name)
+            print(f"Using Gemini model: {model_name}")
+            
+            # Generate interpolated image using chat mode
+            chat = model.start_chat()
+            response = chat.send_message([prompt, start_img, end_img])
+            
+            # Check for generated images in the response
+            generated_image_saved = False
+            
+            for i, part in enumerate(response.candidates[0].content.parts):
+                if part.text is not None:
+                    print("Response from Gemini:")
+                    print(part.text)
+                    
+                    # Save the text analysis
+                    analysis_path = output_path.parent / f"{output_path.stem}_analysis.txt"
+                    analysis_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(analysis_path, 'w') as f:
+                        f.write(f"Interpolation Analysis for {target_date.strftime('%Y-%m-%d')}\n")
+                        f.write("="*50 + "\n\n")
+                        f.write(part.text)
+                    print(f"Saved analysis to: {analysis_path}")
+                    
+                elif part.inline_data is not None:
+                    # Extract and save the generated image
+                    image_bytes = part.inline_data.data
+                    generated_image = Image.open(BytesIO(image_bytes))
+                    generated_image.save(output_path)
+                    print(f"Generated image saved: {output_path}")
+                    generated_image_saved = True
+            
+            if generated_image_saved:
+                return output_path
+            else:
+                print("Warning: No image was generated by Gemini")
+                return create_simple_interpolation(start_img, end_img, start_date, end_date, target_date, output_path)
+                
+        except Exception as e2:
+            print(f"Error with legacy client: {e2}")
+            print("Falling back to simple interpolation...")
+            return create_simple_interpolation(start_img, end_img, start_date, end_date, target_date, output_path)
 
 
 def create_simple_interpolation(start_img, end_img, start_date, end_date, target_date, output_path):
@@ -326,7 +345,7 @@ def main():
     parser.add_argument('--image-type', default='satellite',
                        help='Type of imagery (satellite, rgb, false_color, etc.)')
     parser.add_argument('--simple-only', action='store_true',
-                       help='Skip Gemini API and use simple linear interpolation only')
+                       help='Skip Gemini image generation and use simple linear interpolation as fallback')
     
     args = parser.parse_args()
     
@@ -334,8 +353,8 @@ def main():
     api_key = args.api_key or os.getenv('GEMINI_API_KEY')
     
     if not args.simple_only and not api_key:
-        print("Warning: No Gemini API key provided. Using simple interpolation only.")
-        print("Set GEMINI_API_KEY environment variable or use --api-key option.")
+        print("Warning: No Gemini API key provided. Using simple interpolation as fallback.")
+        print("Set GEMINI_API_KEY environment variable or use --api-key option to enable AI-powered interpolation.")
         api_key = None
     
     # Validate input files
@@ -348,7 +367,11 @@ def main():
         sys.exit(1)
     
     # Run binary recursive interpolation
-    print("Using binary recursive interpolation")
+    if api_key and not args.simple_only:
+        print("Using Gemini AI-powered binary recursive interpolation")
+    else:
+        print("Using simple mathematical binary recursive interpolation")
+    
     interpolate_binary_recursive(
         args.start_image, 
         args.end_image, 

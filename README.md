@@ -206,14 +206,15 @@ python interpolate_images.py image_2002-01-12.png image_2002-03-01.png
 python interpolate_images.py start.png end.png --simple-only
 ```
 
-### AI-Enhanced Cloud Handling
+### AI-Enhanced Cloud Elimination
 
-The interpolation AI has been specifically trained to understand satellite imagery characteristics:
+The interpolation AI aggressively eliminates clouds to maximize ground visibility:
 
 - **Cloud Recognition**: Automatically identifies black pixels as clouds or data gaps
-- **Clear Ground Priority**: Favors showing actual ground features over cloud patterns
-- **Smart Interpolation**: When one image has clouds and another is clear, it prioritizes the clear ground data
-- **Realistic Results**: Generates plausible ground cover in previously clouded areas
+- **Maximum Cloud Removal**: Primary goal is to eliminate ALL black areas from interpolated images
+- **Aggressive Clear Ground Strategy**: Always prioritizes clear pixel data from either reference image
+- **Ground Feature Synthesis**: When both images have clouds, generates realistic ground cover based on surrounding clear areas and seasonal context
+- **Zero Tolerance Approach**: Aims for zero black pixels in final results - every pixel should show actual ground surface
 
 ### Interpolation Method
 
