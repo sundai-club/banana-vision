@@ -463,8 +463,8 @@ def process_netcdf_file(input_file, output_dir, format='png', time_indices=None,
 def main():
     parser = argparse.ArgumentParser(description='Convert NetCDF files to images')
     parser.add_argument('input', help='Input NetCDF file or directory')
-    parser.add_argument('-o', '--output', default='./output_images', 
-                       help='Output directory (default: ./output_images)')
+    parser.add_argument('-o', '--output', default='./output',
+                       help='Output directory (default: ./output)')
     parser.add_argument('-f', '--format', choices=['png', 'jpg', 'jpeg', 'tiff'], 
                        default='png', help='Output image format (default: png)')
     parser.add_argument('-t', '--time-indices', type=int, nargs='+',

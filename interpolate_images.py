@@ -352,7 +352,7 @@ def main():
     parser = argparse.ArgumentParser(description='Interpolate satellite images using Gemini 2.5 Flash')
     parser.add_argument('start_image', help='First satellite image with date in filename')
     parser.add_argument('end_image', help='Second satellite image with date in filename')
-    parser.add_argument('-o', '--output', default='./interpolated_images',
+    parser.add_argument('-o', '--output', default='./output/interpolated_images',
                        help='Output directory for interpolated images')
     parser.add_argument('--api-key', help='Google Gemini API key (or set in .env file as GEMINI_API_KEY)')
     parser.add_argument('--image-type', default='satellite',
