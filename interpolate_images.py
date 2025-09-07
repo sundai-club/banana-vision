@@ -130,15 +130,6 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
                 print("Response from Gemini:")
                 print(part.text)
                 
-                # Save the text analysis
-                analysis_path = output_path.parent / f"{output_path.stem}_analysis.txt"
-                analysis_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(analysis_path, 'w') as f:
-                    f.write(f"Interpolation Analysis for {target_date.strftime('%Y-%m-%d')}\n")
-                    f.write("="*50 + "\n\n")
-                    f.write(part.text)
-                print(f"Saved analysis to: {analysis_path}")
-                
             elif part.inline_data is not None:
                 # Extract and save the generated image
                 image_bytes = part.inline_data.data
@@ -175,15 +166,6 @@ def interpolate_with_gemini(api_key, start_image_path, end_image_path, target_da
                 if part.text is not None:
                     print("Response from Gemini:")
                     print(part.text)
-                    
-                    # Save the text analysis
-                    analysis_path = output_path.parent / f"{output_path.stem}_analysis.txt"
-                    analysis_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(analysis_path, 'w') as f:
-                        f.write(f"Interpolation Analysis for {target_date.strftime('%Y-%m-%d')}\n")
-                        f.write("="*50 + "\n\n")
-                        f.write(part.text)
-                    print(f"Saved analysis to: {analysis_path}")
                     
                 elif part.inline_data is not None:
                     # Extract and save the generated image
