@@ -21,7 +21,7 @@ import base64
 from io import BytesIO
 
 import google.generativeai as genai
-import google.generativeai as google_genai
+from google import genai as google_genai
 from PIL import Image
 import requests
 from dotenv import load_dotenv
