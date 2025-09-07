@@ -13,6 +13,7 @@ import argparse
 import os
 import sys
 import re
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 import base64
@@ -217,6 +218,24 @@ def create_simple_interpolation(start_img, end_img, start_date, end_date, target
     return output_path
 
 
+def copy_original_images(start_image_path, end_image_path, output_dir):
+    """Copy the original start and end images to the output directory."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    # Copy start image
+    start_path = Path(start_image_path)
+    start_dest = output_path / start_path.name
+    shutil.copy2(start_image_path, start_dest)
+    print(f"Copied original start image: {start_dest}")
+    
+    # Copy end image  
+    end_path = Path(end_image_path)
+    end_dest = output_path / end_path.name
+    shutil.copy2(end_image_path, end_dest)
+    print(f"Copied original end image: {end_dest}")
+
+
 def interpolate_binary_recursive(start_image_path, end_image_path, output_dir, api_key=None, image_type="satellite"):
     """Generate images using binary recursive interpolation."""
     
@@ -232,8 +251,9 @@ def interpolate_binary_recursive(start_image_path, end_image_path, output_dir, a
         print("Error: Could not extract dates from filenames")
         return
     
-    # Create output directory
+    # Create output directory and copy original images
     output_path.mkdir(parents=True, exist_ok=True)
+    copy_original_images(start_image_path, end_image_path, output_dir)
     
     # Get binary interpolation sequence
     interpolation_sequence = generate_binary_interpolation_sequence(start_date, end_date)
@@ -313,8 +333,9 @@ def interpolate_image_sequence(start_image_path, end_image_path, output_dir, api
     
     print(f"Found {len(missing_dates)} missing dates between images")
     
-    # Create output directory
+    # Create output directory and copy original images
     output_path.mkdir(parents=True, exist_ok=True)
+    copy_original_images(start_image_path, end_image_path, output_dir)
     
     # Determine band/channel from filename
     band_match = re.search(r'_(rgb|red|green|blue|nir08|false_color|embedding)_', start_path.name)

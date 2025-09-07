@@ -218,6 +218,8 @@ python interpolate_images.py start.png end.png --simple-only --binary
 
 **Example**: Between Jan 12 and Mar 1 (48 days apart), it generates 47 intermediate images for every missing day!
 
+**Note**: The interpolation script automatically copies the original start and end images to the output folder, so you'll have a complete sequence including the originals.
+
 ## Dependencies
 
 All required packages are listed in `requirements.txt`:
