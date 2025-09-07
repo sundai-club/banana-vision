@@ -82,11 +82,15 @@ def create_interpolation_prompt(start_date, end_date, target_date, image_type="s
     if image_size:
         size_instruction = f" The output image must be exactly {image_size[0]}x{image_size[1]} pixels."
     
-    prompt = f"""Generate a satellite image interpolating between these two images for {target_date.strftime('%Y-%m-%d')} (position {interpolation_ratio:.2f}).
+    prompt = f"""These are two imperfect satellite images with cloud coverage and gaps:
+Image 1: {start_date.strftime('%Y-%m-%d')}
+Image 2: {end_date.strftime('%Y-%m-%d')}
 
-KEY: Prioritize visible land over clouds. Where one image shows land and the other shows clouds/black areas, use the visible land data. Minimize black space by combining all available surface information.{size_instruction}
+Generate a perfect satellite image for {target_date.strftime('%Y-%m-%d')} (temporal position {interpolation_ratio:.2f} between these dates).
 
-Output: Satellite image only (no text)."""
+CRITICAL: Black pixels/areas are imperfections (clouds, missing data, sensor gaps) that must be fixed. Use visible land data from either image to reconstruct these areas. Fill all black spaces with realistic terrain based on surrounding visible patterns.{size_instruction}
+
+Output: Complete satellite image with no black areas or missing data."""
     return prompt
 
 
