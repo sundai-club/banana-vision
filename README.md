@@ -195,26 +195,29 @@ Use `interpolate_images.py` to generate missing images between two dates using A
 # Set up your Gemini API key in .env file first
 # Get free key from: https://aistudio.google.com/app/apikey
 
-# Binary recursive interpolation (default, recommended)
+# Binary recursive interpolation
 python interpolate_images.py image_2002-01-12.png image_2002-03-01.png
 
 # Binary interpolation generates middle first, then 1/4, 3/4, etc.
 # Order: middle → quarters → eighths → sixteenths...
-# More balanced and intelligent than linear day-by-day
-
-# Linear sequential interpolation (day by day)
-python interpolate_images.py start.png end.png --linear
+# More balanced and intelligent progression
 
 # Simple interpolation without AI (fastest)
-python interpolate_images.py start.png end.png --simple-only --binary
+python interpolate_images.py start.png end.png --simple-only
 ```
 
-### Interpolation Methods
+### AI-Enhanced Cloud Handling
 
-| Method | Description | Best For |
-|--------|-------------|----------|
-| **Binary (default)** | Middle first, then recursive halves | AI-guided, balanced progression |
-| **Linear** | Day-by-day sequential | Simple temporal progression |
+The interpolation AI has been specifically trained to understand satellite imagery characteristics:
+
+- **Cloud Recognition**: Automatically identifies black pixels as clouds or data gaps
+- **Clear Ground Priority**: Favors showing actual ground features over cloud patterns
+- **Smart Interpolation**: When one image has clouds and another is clear, it prioritizes the clear ground data
+- **Realistic Results**: Generates plausible ground cover in previously clouded areas
+
+### Interpolation Method
+
+**Binary Recursive Interpolation**: Generates the middle frame first, then recursively fills in quarter points, eighth points, etc. This creates a more balanced and intelligent progression compared to sequential day-by-day generation.
 
 **Example**: Between Jan 12 and Mar 1 (48 days apart), it generates 47 intermediate images for every missing day!
 

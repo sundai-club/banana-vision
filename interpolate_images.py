@@ -34,14 +34,6 @@ def extract_date_from_filename(filename):
     return None
 
 
-def generate_date_sequence(start_date, end_date):
-    """Generate all dates between start_date and end_date (exclusive)."""
-    dates = []
-    current = start_date + timedelta(days=1)
-    while current < end_date:
-        dates.append(current)
-        current += timedelta(days=1)
-    return dates
 
 
 def generate_binary_interpolation_sequence(start_date, end_date):
@@ -104,12 +96,23 @@ Create a realistic satellite image for the target date that represents a smooth 
 4. **Natural Processes**: Gradual landscape changes, erosion, water levels
 5. **Temporal Consistency**: Realistic progression of all visible features
 
+**CRITICAL - Cloud/Data Gap Handling:**
+6. **Black Pixels = Clouds**: Black pixels or very dark areas typically represent clouds, cloud shadows, or data gaps
+7. **Avoid Cloud Reproduction**: The interpolated image should MINIMIZE black pixels/areas when possible
+8. **Clear Ground Priority**: When clouds obscure areas in reference images:
+   - Use clear pixel data from the clearer reference image
+   - Interpolate based on surrounding clear pixels and seasonal patterns
+   - Generate realistic ground cover rather than maintaining cloud coverage
+   - Show actual land surface features instead of atmospheric obstructions
+9. **Realistic Weather**: Consider typical weather patterns but prioritize ground visibility over cloud patterns
+
 **Output Requirements:**
 - Generate an image with identical dimensions and structure
 - Maintain spatial consistency (same geographic features)
 - Apply gradual, realistic temporal changes
 - Preserve the same image characteristics (bands, composites, etc.)
 - Ensure smooth transition between start and end states
+- PRIORITIZE clear ground visibility over reproducing clouds or data gaps
 
 Please generate the intermediate satellite image for {target_date.strftime('%Y-%m-%d')}.
 """
@@ -309,62 +312,6 @@ def interpolate_binary_recursive(start_image_path, end_image_path, output_dir, a
             generated_images[target_date] = result_path
 
 
-def interpolate_image_sequence(start_image_path, end_image_path, output_dir, api_key=None, image_type="satellite"):
-    """Generate all missing images between two satellite images."""
-    
-    start_path = Path(start_image_path)
-    end_path = Path(end_image_path)
-    output_path = Path(output_dir)
-    
-    # Extract dates
-    start_date = extract_date_from_filename(start_path.name)
-    end_date = extract_date_from_filename(end_path.name)
-    
-    if not start_date or not end_date:
-        print("Error: Could not extract dates from filenames")
-        return
-    
-    # Generate sequence of missing dates
-    missing_dates = generate_date_sequence(start_date, end_date)
-    
-    if not missing_dates:
-        print("No missing dates between the two images")
-        return
-    
-    print(f"Found {len(missing_dates)} missing dates between images")
-    
-    # Create output directory and copy original images
-    output_path.mkdir(parents=True, exist_ok=True)
-    copy_original_images(start_image_path, end_image_path, output_dir)
-    
-    # Determine band/channel from filename
-    band_match = re.search(r'_(rgb|red|green|blue|nir08|false_color|embedding)_', start_path.name)
-    band_type = band_match.group(1) if band_match else "unknown"
-    
-    # Generate interpolated images for each missing date
-    for target_date in missing_dates:
-        # Create output filename following the same pattern
-        base_name = re.sub(r'_\d{4}-\d{2}-\d{2}\.', f'_{target_date.strftime("%Y-%m-%d")}.', start_path.name)
-        output_file = output_path / base_name
-        
-        print(f"\nGenerating image for {target_date.strftime('%Y-%m-%d')}...")
-        
-        if api_key:
-            try:
-                interpolate_with_gemini(api_key, start_path, end_path, target_date, 
-                                      output_file, f"{image_type} {band_type}")
-            except Exception as e:
-                print(f"Error with Gemini interpolation: {e}")
-                create_simple_interpolation(
-                    Image.open(start_path), Image.open(end_path),
-                    start_date, end_date, target_date, output_file
-                )
-        else:
-            create_simple_interpolation(
-                Image.open(start_path), Image.open(end_path),
-                start_date, end_date, target_date, output_file
-            )
-
 
 def main():
     # Load environment variables from .env file
@@ -380,10 +327,6 @@ def main():
                        help='Type of imagery (satellite, rgb, false_color, etc.)')
     parser.add_argument('--simple-only', action='store_true',
                        help='Skip Gemini API and use simple linear interpolation only')
-    parser.add_argument('--binary', action='store_true',
-                       help='Use binary recursive interpolation (middle first, then 1/4, 3/4, etc.)')
-    parser.add_argument('--linear', action='store_true',
-                       help='Use linear sequential interpolation (day by day)')
     
     args = parser.parse_args()
     
@@ -404,31 +347,15 @@ def main():
         print(f"Error: End image not found: {args.end_image}")
         sys.exit(1)
     
-    # Determine interpolation method
-    use_binary = args.binary or not args.linear  # Default to binary
-    
-    if args.binary and args.linear:
-        print("Warning: Both --binary and --linear specified. Using binary interpolation.")
-    
-    # Run interpolation
-    if use_binary:
-        print("Using binary recursive interpolation (recommended)")
-        interpolate_binary_recursive(
-            args.start_image, 
-            args.end_image, 
-            args.output,
-            api_key if not args.simple_only else None,
-            args.image_type
-        )
-    else:
-        print("Using linear sequential interpolation")
-        interpolate_image_sequence(
-            args.start_image, 
-            args.end_image, 
-            args.output,
-            api_key if not args.simple_only else None,
-            args.image_type
-        )
+    # Run binary recursive interpolation
+    print("Using binary recursive interpolation")
+    interpolate_binary_recursive(
+        args.start_image, 
+        args.end_image, 
+        args.output,
+        api_key if not args.simple_only else None,
+        args.image_type
+    )
     
     print("\nInterpolation complete!")
 
